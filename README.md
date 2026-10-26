@@ -24,6 +24,7 @@
 
 - **Blocks ads and trackers** before they load, using EasyList, EasyPrivacy, AdGuard Base, uBlock filters and Fanboy's Annoyance List.
 - **Hides leftover ad boxes** so pages don't show empty gaps.
+- **Blocks YouTube video ads** by removing them from the player data before the video starts.
 - **Stays up to date by itself.** The lists are packaged into every release, and the extension checks each one for changes every time your browser starts.
 - **Lets you pause it** on any site that misbehaves, or turn it off everywhere, from the toolbar.
 - **Free and private.** No account, no "acceptable ads", no servers of ours. The only network requests it makes are to the filter lists' own hosts.

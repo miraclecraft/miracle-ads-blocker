@@ -46,6 +46,7 @@ const builds: esbuild.BuildOptions[] = [
   { ...common, entryPoints: { 'popup/popup': 'src/popup/popup.ts' }, outdir: OUT, format: 'esm' },
   { ...common, entryPoints: { 'offscreen/offscreen': 'src/offscreen/offscreen.ts' }, outdir: OUT, format: 'esm' },
   { ...common, entryPoints: { 'offscreen/worker': 'src/offscreen/worker.ts' }, outdir: OUT, format: 'iife' },
+  { ...common, entryPoints: { 'sites/youtube': 'src/sites/youtube.ts' }, outdir: OUT, format: 'iife' },
 ];
 
 if (watch) {

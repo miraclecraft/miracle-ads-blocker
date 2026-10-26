@@ -1,9 +1,11 @@
 // The user's switches: blocking on or off everywhere, and sites they paused.
-// Each is a single dynamic rule that outranks every filter rule.
+// Each is a single dynamic rule that outranks every filter rule, plus the
+// registration of site scripts.
 
 import { PRIORITY } from '../shared/filters/convert.ts';
 import type { DnrRule } from '../shared/filters/types.ts';
 import { getLocal } from '../shared/storage-keys.ts';
+import { syncSiteScripts } from './site-scripts.ts';
 
 /** Dynamic rule IDs below this are reserved for user controls. */
 export const FILTER_RULE_ID_BASE = 1_000;
@@ -56,4 +58,5 @@ export async function syncControlRules(): Promise<void> {
     removeRuleIds: [PAUSED_RULE_ID, DISABLED_RULE_ID],
     addRules: addRules as chrome.declarativeNetRequest.Rule[],
   });
+  await syncSiteScripts(enabled, pausedSites);
 }
