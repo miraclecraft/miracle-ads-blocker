@@ -1,0 +1,47 @@
+name: Build
+
+# Every push packages the freshest merged lists. A tag like v0.2.0 also
+# publishes the zip as a GitHub release, ready to upload to the stores.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lists
+      - run: npm run build
+
+      - name: Zip extension
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "ZIP=miracle-ads-blocker-$VERSION.zip" >> "$GITHUB_ENV"
+          cd dist && zip -qr "../miracle-ads-blocker-$VERSION.zip" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miracle-ads-blocker
+          path: ${{ env.ZIP }}
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$ZIP" --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md

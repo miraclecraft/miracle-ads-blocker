@@ -1,0 +1,27 @@
+{
+  "name": "miracle-ads-blocker",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "description": "Edge and Chrome extension that blocks ads and trackers using merged open-source filter lists",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lists": "node scripts/build-lists.ts",
+    "icons": "node scripts/build-icons.ts",
+    "build": "node scripts/build.ts",
+    "watch": "node scripts/build.ts --watch",
+    "typecheck": "tsc",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "package": "node scripts/package.ts"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/chrome": "^0.3.6",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

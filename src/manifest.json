@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Miracle - Ads Blocker",
+  "version": "0.0.0",
+  "description": "Blocks ads and trackers with EasyList, EasyPrivacy, AdGuard and uBlock filters, merged and kept up to date automatically.",
+  "minimum_chrome_version": "121",
+  "permissions": [
+    "declarativeNetRequest",
+    "storage",
+    "unlimitedStorage",
+    "alarms",
+    "offscreen",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "domains", "enabled": true, "path": "rules/domains.json" },
+      { "id": "network", "enabled": true, "path": "rules/network.json" },
+      { "id": "network-extra", "enabled": false, "path": "rules/network-extra.json" }
+    ]
+  },
+  "action": {
+    "default_title": "Miracle - Ads Blocker",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

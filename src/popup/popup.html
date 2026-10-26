@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Miracle - Ads Blocker</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="../icons/icon32.png" alt="" width="20" height="20" />
+      <h1>Miracle - Ads Blocker</h1>
+    </header>
+
+    <section class="card site">
+      <div class="host" id="host">This page</div>
+      <div class="count"><span id="blocked">0</span> blocked on this page</div>
+      <label class="switch-row" id="site-row">
+        <span>Block ads on this site</span>
+        <input type="checkbox" id="site-toggle" role="switch" />
+      </label>
+    </section>
+
+    <label class="switch-row">
+      <span>Block ads everywhere</span>
+      <input type="checkbox" id="global-toggle" role="switch" />
+    </label>
+
+    <section>
+      <div class="section-head">
+        <h2>Filter lists</h2>
+        <button id="refresh" class="link">Check for updates</button>
+      </div>
+      <p class="meta" id="lists-summary"></p>
+      <ul id="sources" class="list"></ul>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
