@@ -46,7 +46,19 @@ export interface CosmeticFilter {
   excludedDomains: string[];
 }
 
-export type Filter = DomainFilter | NetworkFilter | CosmeticFilter;
+/** `example.com#$#snippet arg; other-snippet arg`: Adblock Plus snippets. */
+export interface SnippetFilter {
+  kind: 'snippet';
+  key: string;
+  /** `#@$#`: switches off snippet rules with exactly these calls on these sites. */
+  exception: boolean;
+  domains: string[];
+  excludedDomains: string[];
+  /** Each call is `[name, ...args]`, in the order they appear. */
+  calls: string[][];
+}
+
+export type Filter = DomainFilter | NetworkFilter | CosmeticFilter | SnippetFilter;
 
 /** Element-hiding entry as stored in rules/cosmetic.json. */
 export interface CosmeticEntry {
@@ -54,6 +66,13 @@ export interface CosmeticEntry {
   d?: string[];
   x?: string[];
   e?: 1;
+}
+
+/** Snippet entry as stored in rules/snippets.json. */
+export interface SnippetEntry {
+  d: string[];
+  x?: string[];
+  c: string[][];
 }
 
 export interface DnrCondition {

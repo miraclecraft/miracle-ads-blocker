@@ -26,7 +26,7 @@ export interface BundleSourceInfo {
  * Where a bundled filter lives:
  * - positive: a rule ID in the network rulesets (IDs above `networkLastId` are in network-extra)
  * - negative: the negated rule ID of a domain chunk in the domains ruleset
- * - zero: an element-hiding entry in cosmetic.json
+ * - zero: an element-hiding entry in cosmetic.json or a snippet entry in snippets.json
  */
 export type BundleLocation = number;
 
@@ -45,5 +45,5 @@ export interface BundleIndex {
 export interface BundleMeta {
   builtAt: string;
   sources: { id: string; filters: number }[];
-  rules: { domains: number; network: number; networkExtra: number; cosmetic: number };
+  rules: { domains: number; network: number; networkExtra: number; cosmetic: number; snippets: number };
 }

@@ -1,5 +1,5 @@
 import { fingerprint } from '../hash.ts';
-import type { Filter } from './types.ts';
+import type { Filter, SnippetFilter } from './types.ts';
 
 export interface MergedFilter {
   fp: string;
@@ -13,8 +13,13 @@ export interface MergedFilter {
 /** Deduplicates filters across sources and records which sources agree on each. */
 export class FilterMerger {
   readonly filters = new Map<string, MergedFilter>();
+  private readonly snippetExceptions: SnippetFilter[] = [];
 
   add(filter: Filter, sourceBit: number): void {
+    if (filter.kind === 'snippet') {
+      if (filter.exception) return this.addSnippetException(filter);
+      if (this.snippetExceptions.some((e) => cancels(e, filter))) return;
+    }
     const fp = fingerprint(filter.key);
     const bit = 1 << sourceBit;
     const existing = this.filters.get(fp);
@@ -25,6 +30,22 @@ export class FilterMerger {
       existing.votes++;
     }
   }
+
+  /** Applies to snippet rules from every list, whichever order they are added in. */
+  private addSnippetException(exception: SnippetFilter): void {
+    this.snippetExceptions.push(exception);
+    for (const [fp, merged] of this.filters) {
+      if (merged.filter.kind === 'snippet' && cancels(exception, merged.filter)) this.filters.delete(fp);
+    }
+  }
+}
+
+/** An exception cancels a rule with the same calls on any of the same sites. */
+function cancels(exception: SnippetFilter, rule: SnippetFilter): boolean {
+  return (
+    rule.domains.some((d) => exception.domains.includes(d)) &&
+    JSON.stringify(rule.calls) === JSON.stringify(exception.calls)
+  );
 }
 
 /** Most agreed-on first, then the most trusted source, then stable by key. */

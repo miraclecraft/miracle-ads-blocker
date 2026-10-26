@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.1.1-7c3aed?style=flat-square" alt="Version" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.2.0-7c3aed?style=flat-square" alt="Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-db2777?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3"><img src="https://img.shields.io/badge/manifest-v3-f59e0b?style=flat-square" alt="Manifest V3" /></a>
 </p>
@@ -22,9 +22,10 @@
 
 ## What it does
 
-- **Blocks ads and trackers** before they load, using EasyList, EasyPrivacy, AdGuard Base, uBlock filters and Fanboy's Annoyance List.
+- **Blocks ads and trackers** before they load, using EasyList, EasyPrivacy, AdGuard Base, uBlock filters, Fanboy's Annoyance List and Adblock Plus's anti-circumvention list.
 - **Hides leftover ad boxes** so pages don't show empty gaps.
 - **Blocks YouTube video ads** by removing them from the player data before the video starts.
+- **Removes sponsored posts on Facebook and Instagram**, and gets past many "disable your ad blocker" walls, using the same snippet rules and engine as Adblock Plus. Only ad posts go; your real posts stay.
 - **Stays up to date by itself.** The lists are packaged into every release, and the extension checks each one for changes every time your browser starts.
 - **Lets you pause it** on any site that misbehaves, or turn it off everywhere, from the toolbar.
 - **Free and private.** No account, no "acceptable ads", no servers of ours. The only network requests it makes are to the filter lists' own hosts.
@@ -47,6 +48,6 @@ If a list is unreachable or looks broken, the extension keeps using the copy it 
 
 ## Licence
 
-[GPL-3.0-or-later](LICENSE). The packaged filter lists belong to their authors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[GPL-3.0-only](LICENSE). The packaged filter lists belong to their authors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Part of the Miracle family of free, open-source browser tools, alongside [Miracle - Video Downloader](https://github.com/miraclecraft/miracle-video-downloader).

@@ -1,11 +1,13 @@
-import type { CosmeticEntry } from './filters/types.ts';
+import type { CosmeticEntry, SnippetEntry } from './filters/types.ts';
 import type { LastRefresh } from './messages.ts';
 
 /** Cache Storage bucket holding the latest downloaded copy of each list. */
 export const LIST_CACHE = 'filter-lists-v1';
 
-export interface CosmeticDelta {
-  added: CosmeticEntry[];
+/** Element-hiding and snippet changes on top of the bundled files. */
+export interface PageDelta {
+  cosmetic: CosmeticEntry[];
+  snippets: SnippetEntry[];
   /** Fingerprints of bundled entries removed upstream. */
   removed: string[];
 }
@@ -16,7 +18,7 @@ export interface LocalState {
   pausedSites: string[];
   lastSignature: string;
   lastRefresh: LastRefresh;
-  cosmeticDelta: CosmeticDelta;
+  pageDelta: PageDelta;
 }
 
 /** Everything kept in chrome.storage.session. */

@@ -6,7 +6,6 @@ import type { LastRefresh, Message, RefreshResult } from '../shared/messages.ts'
 import type { Plan } from '../shared/plan.ts';
 import { getLocal, getSession, LIST_CACHE } from '../shared/storage-keys.ts';
 import { FILTER_RULE_ID_BASE } from './controls.ts';
-import { resetCosmeticEngine } from './cosmetic.ts';
 
 const OFFSCREEN_URL = 'offscreen/offscreen.html';
 /** A refresh that hasn't reported back after this long is assumed dead. */
@@ -91,8 +90,10 @@ async function applyPlan(plan: Plan): Promise<void> {
     }
   }
 
-  await chrome.storage.local.set({ cosmeticDelta: { added: plan.cosmeticAdded, removed: plan.cosmeticRemoved } });
-  resetCosmeticEngine();
+  // The element-hiding and snippet engines reload when this changes.
+  await chrome.storage.local.set({
+    pageDelta: { cosmetic: plan.cosmeticAdded, snippets: plan.snippetsAdded, removed: plan.removedEntries },
+  });
 }
 
 /**
@@ -111,8 +112,7 @@ export async function resetRuntimeLayer(): Promise<void> {
     if (disabled.length) await chrome.declarativeNetRequest.updateStaticRules({ rulesetId: id, enableRuleIds: disabled });
   }
   await caches.delete(LIST_CACHE);
-  await chrome.storage.local.remove(['cosmeticDelta', 'lastSignature', 'lastRefresh']);
-  resetCosmeticEngine();
+  await chrome.storage.local.remove(['pageDelta', 'lastSignature', 'lastRefresh']);
 }
 
 /** Turns on the overflow ruleset when the browser's shared rule pool has room. */

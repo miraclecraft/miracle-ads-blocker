@@ -29,6 +29,7 @@ rebuilds on every change; reload the extension afterwards.
 ```
 scripts/build-lists.ts   CI: fetch, merge, rank, validate, write rules/
 scripts/build.ts         bundle src/ into dist/
+filters/miracle-fixes.txt  corrections to upstream rules
 src/shared/              code shared by CI and the extension
   sources.ts             the filter lists and their mirrors
   filters/parse.ts       ABP / AdGuard / uBO syntax and hosts files -> filters
@@ -38,6 +39,7 @@ src/shared/              code shared by CI and the extension
 src/background/          service worker: scheduling, applying updates, element hiding
 src/offscreen/           worker that downloads and merges lists off the main thread
 src/content/             reports page classes/IDs for element hiding
+src/sites/               page-world scripts: YouTube, packaged snippets
 src/popup/               toolbar popup
 ```
 
@@ -73,10 +75,44 @@ The service worker then applies the plan in one `updateDynamicRules` call and
 disables static rules that were removed upstream. Installing a new version
 clears everything learned at runtime, since it described the old bundle.
 
+## Snippets
+
+`#$#` rules are Adblock Plus snippets, run with eyeo's own library
+(`@eyeo/snippets`). Only lists with `snippets: true` in `sources.ts` may supply
+them (EasyList, the ABP anti-circumvention list and Miracle fixes), as in
+Adblock Plus. AdGuard's and uBO's script rules use other syntaxes and stay
+unsupported.
+
+- Packaged rules for the page's own world (rewriting data such as Facebook's
+  sponsored feed items) are compiled into `sites/snippets-main.js`, which is
+  registered at document_start on the sites they target, so they always run
+  before the page's scripts.
+- Isolated-world rules (hiding elements), and page-world rules added by list
+  updates since the build, are injected by the background when a frame commits
+  a navigation (`src/background/snippets.ts`). Rules added this way can arrive
+  after the page's first scripts have run; the next release packages them.
+- A site whose packaged page-world rules were removed upstream is left out of
+  the registered script, and its current rules are injected instead.
+
+`node scripts/build.ts --debug-snippets` builds a `dist/` where a page can skip
+packaged rules: set `localStorage['miracle-skip-snippets']` to a JSON array of
+rule indexes and reload; `window.__miracleSnippets` lists the rules that ran.
+Never release a debug build.
+
+## Fixing an upstream rule
+
+`filters/miracle-fixes.txt` is packaged with the extension and applied on top of
+every list, at build time and on every runtime update. To switch off a faulty
+snippet rule, add a `#@$#` exception with its exact upstream text, then add a
+corrected `#$#` rule if one is needed. If upstream later changes the rule's
+text, the exception stops matching, so check whether the new version still
+needs fixing.
+
 ## Adding a list
 
 Add it to `src/shared/sources.ts`. Set `bundle: false` unless its licence
-allows redistribution; unbundled lists are only fetched at runtime. Update
+allows redistribution; unbundled lists are only fetched at runtime. Set
+`snippets: true` only for lists from the snippet authors' ecosystem. Update
 `THIRD_PARTY_NOTICES.md`.
 
 ## Not supported yet
@@ -86,5 +122,5 @@ Filters with these features are skipped and counted as unsupported by
 
 - Regex network filters (they need RE2 validation and have a 1,000-rule quota)
 - Entity domains like `google.*`
-- Scriptlets (`##+js(...)`), procedural and extended CSS, HTML filtering
+- uBO scriptlets (`##+js(...)`), AdGuard scripts (`#%#`), procedural and extended CSS, HTML filtering
 - `$redirect`, `$removeparam`, `$csp`, `$popup`, `$badfilter`, `$generichide` and similar options

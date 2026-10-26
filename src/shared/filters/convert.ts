@@ -1,4 +1,4 @@
-import type { CosmeticEntry, CosmeticFilter, DnrRuleDraft, NetworkFilter } from './types.ts';
+import type { CosmeticEntry, CosmeticFilter, DnrRuleDraft, NetworkFilter, SnippetEntry, SnippetFilter } from './types.ts';
 
 export const PRIORITY = {
   block: 1,
@@ -43,5 +43,11 @@ export function cosmeticEntry(f: CosmeticFilter): CosmeticEntry {
   if (f.domains.length) entry.d = f.domains;
   if (f.excludedDomains.length) entry.x = f.excludedDomains;
   if (f.exception) entry.e = 1;
+  return entry;
+}
+
+export function snippetEntry(f: SnippetFilter): SnippetEntry {
+  const entry: SnippetEntry = { d: f.domains, c: f.calls };
+  if (f.excludedDomains.length) entry.x = f.excludedDomains;
   return entry;
 }

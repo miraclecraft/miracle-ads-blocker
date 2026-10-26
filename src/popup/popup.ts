@@ -49,7 +49,7 @@ function renderLists(last: LastRefresh | undefined): void {
   else summaryEl.textContent = `${packaged}. Checked ${formatDate(last.at)}: +${last.added} / −${last.removed} rules.`;
 
   sourcesEl.replaceChildren(
-    ...SOURCES.map((source) => {
+    ...SOURCES.filter((source) => !source.local).map((source) => {
       const status = last?.sources.find((s) => s.id === source.id);
       const li = document.createElement('li');
       const name = document.createElement('span');

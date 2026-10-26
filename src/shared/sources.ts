@@ -19,9 +19,29 @@ export interface FilterSource {
   bundle: boolean;
   /** A download with fewer supported filters than this is treated as broken. */
   minFilters: number;
+  /**
+   * Whether this list may run snippets (`#$#` rules) in pages. As in Adblock
+   * Plus, only lists maintained by the snippet authors' ecosystem are trusted
+   * to run code-configuring rules.
+   */
+  snippets?: boolean;
+  /** Shipped inside the extension (urls[0] is a path in it), never downloaded. */
+  local?: boolean;
 }
 
 export const SOURCES: FilterSource[] = [
+  {
+    id: 'miracle-fixes',
+    name: 'Miracle fixes',
+    urls: ['filters/miracle-fixes.txt'],
+    format: 'abp',
+    homepage: 'https://github.com/miraclecraft/miracle-ads-blocker',
+    license: 'GPL-3.0-only',
+    bundle: true,
+    minFilters: 1,
+    snippets: true,
+    local: true,
+  },
   {
     id: 'easylist',
     name: 'EasyList',
@@ -34,6 +54,18 @@ export const SOURCES: FilterSource[] = [
     license: 'GPL-3.0-or-later OR CC-BY-SA-3.0',
     bundle: true,
     minFilters: 20_000,
+    snippets: true,
+  },
+  {
+    id: 'abp-anti-cv',
+    name: 'ABP anti-circumvention',
+    urls: ['https://easylist-downloads.adblockplus.org/abp-filters-anti-cv.txt'],
+    format: 'abp',
+    homepage: 'https://gitlab.com/eyeo/anti-cv/abp-filters-anti-cv',
+    license: 'GPL-3.0',
+    bundle: true,
+    minFilters: 500,
+    snippets: true,
   },
   {
     id: 'easyprivacy',

@@ -4,7 +4,12 @@
 // skipping a filter is always safer than applying a broader one.
 
 import type { ListFormat } from '../sources.ts';
-import type { CosmeticFilter, Filter, NetworkFilter, ResourceType } from './types.ts';
+import type { CosmeticFilter, Filter, NetworkFilter, ResourceType, SnippetFilter } from './types.ts';
+
+export interface ParseOptions {
+  /** Accept `#$#` snippet rules. Only for lists trusted to run them. */
+  snippets?: boolean;
+}
 
 export interface ParseStats {
   lines: number;
@@ -62,7 +67,12 @@ const HOSTS_SKIP = new Set([
 const UNSUPPORTED = 'unsupported';
 type LineResult = Filter | null | typeof UNSUPPORTED;
 
-export function parseList(text: string, format: ListFormat, onFilter: (filter: Filter) => void): ParseStats {
+export function parseList(
+  text: string,
+  format: ListFormat,
+  onFilter: (filter: Filter) => void,
+  options: ParseOptions = {},
+): ParseStats {
   const stats: ParseStats = { lines: 0, filters: 0, unsupported: 0 };
   // Stack of "is this !#if branch active" flags.
   const conditions: boolean[] = [];
@@ -80,7 +90,7 @@ export function parseList(text: string, format: ListFormat, onFilter: (filter: F
     }
     if (conditions.includes(false)) continue;
 
-    const result = format === 'hosts' ? parseHostsLine(line) : parseAbpLine(line);
+    const result = format === 'hosts' ? parseHostsLine(line) : parseAbpLine(line, options);
     if (result === UNSUPPORTED) {
       stats.unsupported++;
     } else if (Array.isArray(result)) {
@@ -121,11 +131,10 @@ function parseHostsLine(line: string): Filter[] | null {
   return filters;
 }
 
-export function parseAbpLine(line: string): LineResult {
+export function parseAbpLine(line: string, options: ParseOptions = {}): LineResult {
   if (line.startsWith('!') || line.startsWith('[')) return null;
-  if (!PRINTABLE_ASCII_RE.test(line)) return UNSUPPORTED;
 
-  const cosmetic = parseCosmetic(line);
+  const cosmetic = parseCosmetic(line, options);
   if (cosmetic !== undefined) return cosmetic;
   return parseNetwork(line);
 }
@@ -138,7 +147,7 @@ function domainFilter(domain: string): Filter {
 // Element hiding
 
 /** Returns undefined when the line is not a cosmetic filter at all. */
-function parseCosmetic(line: string): LineResult | undefined {
+function parseCosmetic(line: string, options: ParseOptions): LineResult | undefined {
   const hash = line.indexOf('#');
   if (hash === -1) {
     // AdGuard HTML filtering: `example.com$$script[...]`.
@@ -159,6 +168,10 @@ function parseCosmetic(line: string): LineResult | undefined {
   } else if (rest.startsWith('#@#')) {
     exception = true;
     selector = rest.slice(3);
+  } else if (rest.startsWith('#$#')) {
+    return options.snippets ? parseSnippet(prefix, rest.slice(3), false) : UNSUPPORTED;
+  } else if (rest.startsWith('#@$#')) {
+    return options.snippets ? parseSnippet(prefix, rest.slice(4), true) : UNSUPPORTED;
   } else if (/^#@?[?$%]/.test(rest)) {
     // Extended CSS (#?#), CSS injection (#$#) and scriptlets (#%#).
     return UNSUPPORTED;
@@ -195,6 +208,76 @@ function parseCosmetic(line: string): LineResult | undefined {
   return filter;
 }
 
+function parseSnippet(prefix: string, script: string, exception: boolean): LineResult {
+  const parsed = parseDomainList(prefix, ',');
+  // Snippets always target specific sites; a generic one would run everywhere.
+  if (!parsed || parsed.domains.length === 0) return UNSUPPORTED;
+  const calls = parseScript(script);
+  if (!calls.length) return UNSUPPORTED;
+  const filter: SnippetFilter = {
+    kind: 'snippet',
+    key: `${exception ? '@@' : ''}${snippetKey(parsed.domains, parsed.excluded, calls)}`,
+    exception,
+    domains: parsed.domains,
+    excludedDomains: parsed.excluded,
+    calls,
+  };
+  return filter;
+}
+
+export function snippetKey(domains: string[], excluded: string[], calls: string[][]): string {
+  const scope = [...domains, ...excluded.map((d) => `~${d}`)].sort().join(',');
+  return `${scope}#$#${JSON.stringify(calls)}`;
+}
+
+/**
+ * Splits a snippet script into calls, following Adblock Plus syntax: calls are
+ * separated by `;`, arguments by whitespace, single quotes group an argument,
+ * and a backslash escapes the next character (`\n`, `\r`, `\t` and `\uXXXX`
+ * included).
+ */
+export function parseScript(script: string): string[][] {
+  const calls: string[][] = [];
+  let call: string[] = [];
+  let argument = '';
+  let escape = false;
+  let withinQuotes = false;
+  let quotesClosed = false;
+  let unicode: string | null = null;
+
+  for (const character of `${script.trim()};`) {
+    const afterQuotesClosed = quotesClosed;
+    quotesClosed = false;
+    if (unicode !== null) {
+      unicode += character;
+      if (unicode.length === 4) {
+        const codePoint = Number.parseInt(unicode, 16);
+        if (!Number.isNaN(codePoint)) argument += String.fromCodePoint(codePoint);
+        unicode = null;
+      }
+    } else if (escape) {
+      escape = false;
+      if (character === 'u') unicode = '';
+      else argument += character === 'n' ? '\n' : character === 'r' ? '\r' : character === 't' ? '\t' : character;
+    } else if (character === '\\') {
+      escape = true;
+    } else if (character === "'") {
+      withinQuotes = !withinQuotes;
+      if (!withinQuotes) quotesClosed = true;
+    } else if (withinQuotes || (character !== ';' && !/\s/u.test(character))) {
+      argument += character;
+    } else {
+      if (argument || afterQuotesClosed) call.push(argument);
+      argument = '';
+      if (character === ';' && call.length) {
+        calls.push(call);
+        call = [];
+      }
+    }
+  }
+  return calls;
+}
+
 export function cosmeticKey(selector: string, domains: string[], excluded: string[], exception: boolean): string {
   const scope = [...domains, ...excluded.map((d) => `~${d}`)].sort().join(',');
   return `${scope}${exception ? '#@#' : '##'}${selector}`;
@@ -218,6 +301,8 @@ function parseDomainList(text: string, separator: string): { domains: string[]; 
 // Network
 
 function parseNetwork(line: string): LineResult {
+  // declarativeNetRequest only accepts ASCII URL filters.
+  if (!PRINTABLE_ASCII_RE.test(line)) return UNSUPPORTED;
   let text = line;
   const exception = text.startsWith('@@');
   if (exception) text = text.slice(2);

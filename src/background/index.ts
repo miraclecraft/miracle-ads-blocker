@@ -1,8 +1,9 @@
 import type { Message, PopupState } from '../shared/messages.ts';
 import { getLocal } from '../shared/storage-keys.ts';
 import { getControls, isPaused, setEnabled, setPaused, syncControlRules } from './controls.ts';
-import { getCosmeticEngine, injectHidingCss } from './cosmetic.ts';
+import { getCosmeticEngine, injectHidingCss, resetCosmeticEngine } from './cosmetic.ts';
 import { enableExtraRulesetIfRoom, finishRefresh, resetRuntimeLayer, startRefresh } from './refresh.ts';
+import { forgetTab, getSnippetEngine, resetSnippetEngine, runSnippets } from './snippets.ts';
 
 const STARTUP_REFRESH_ALARM = 'refresh-startup';
 const PERIODIC_REFRESH_ALARM = 'refresh-periodic';
@@ -26,6 +27,22 @@ async function setUp(): Promise<void> {
     await chrome.alarms.create(PERIODIC_REFRESH_ALARM, { periodInMinutes: PERIODIC_MINUTES });
   }
 }
+
+// Snippets have to land before the page's own scripts run, so load their
+// rules as soon as the service worker starts rather than on first use.
+void getSnippetEngine().catch(() => {});
+
+chrome.webNavigation.onCommitted.addListener((details) => void runSnippets(details));
+chrome.tabs.onRemoved.addListener(forgetTab);
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.pageDelta) {
+    resetCosmeticEngine();
+    resetSnippetEngine();
+    // Which sites the registered snippet script covers depends on the delta.
+    void syncControlRules();
+  }
+});
 
 chrome.alarms.onAlarm.addListener(({ name }) => {
   if (name === STARTUP_REFRESH_ALARM) void startRefresh(true);

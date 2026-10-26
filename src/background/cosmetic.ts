@@ -71,7 +71,7 @@ export function getCosmeticEngine(): Promise<CosmeticEngine> {
   return engine;
 }
 
-/** Call after the stored delta changes. */
+/** Call after the stored page delta changes. */
 export function resetCosmeticEngine(): void {
   engine = undefined;
 }
@@ -79,9 +79,9 @@ export function resetCosmeticEngine(): void {
 async function loadEngine(): Promise<CosmeticEngine> {
   const [bundled, stored] = await Promise.all([
     fetch(chrome.runtime.getURL(`${RULES_DIR}/cosmetic.json`)).then((r) => r.json() as Promise<CosmeticEntry[]>),
-    getLocal(['cosmeticDelta']),
+    getLocal(['pageDelta']),
   ]);
-  const delta = stored.cosmeticDelta;
+  const delta = stored.pageDelta;
   const removed = new Set(delta?.removed ?? []);
 
   const result = new CosmeticEngine();
@@ -89,7 +89,7 @@ async function loadEngine(): Promise<CosmeticEngine> {
     if (removed.size && removed.has(fingerprint(cosmeticKey(entry.s, entry.d ?? [], entry.x ?? [], !!entry.e)))) continue;
     result.add(entry);
   }
-  for (const entry of delta?.added ?? []) result.add(entry);
+  for (const entry of delta?.cosmetic ?? []) result.add(entry);
   return result;
 }
 

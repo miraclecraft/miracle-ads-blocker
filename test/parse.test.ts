@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { networkRule } from '../src/shared/filters/convert.ts';
-import { parseAbpLine, parseList } from '../src/shared/filters/parse.ts';
+import { FilterMerger } from '../src/shared/filters/merge.ts';
+import { parseAbpLine, parseList, parseScript, snippetKey } from '../src/shared/filters/parse.ts';
 import type { Filter } from '../src/shared/filters/types.ts';
 
 function parse(text: string, format: 'abp' | 'hosts' = 'abp'): Filter[] {
@@ -100,4 +101,45 @@ test('uBO !#if blocks honour Chromium MV3 tokens', () => {
     parse(list).map((f) => f.key),
     ['||not-firefox.com^', '||no-html-filtering.com^'],
   );
+});
+
+test('snippet scripts split into calls the way Adblock Plus does', () => {
+  assert.deepEqual(parseScript(`json-prune 'a.b c' ; hide-if-contains '/^Ad$/' 'div[aria-posinset]'`), [
+    ['json-prune', 'a.b c'],
+    ['hide-if-contains', '/^Ad$/', 'div[aria-posinset]'],
+  ]);
+  assert.deepEqual(parseScript(String.raw`log 'it\'s' \u0041 '' end`), [['log', "it's", 'A', '', 'end']]);
+});
+
+test('snippet rules are only accepted from lists trusted to run them', () => {
+  const line = "www.facebook.com,~m.facebook.com#$#json-override 'jsonpath($.data.node)' null '' /SponsoredData/";
+  assert.equal(parseAbpLine(line), 'unsupported');
+  assert.deepEqual(parseAbpLine(line, { snippets: true }), {
+    kind: 'snippet',
+    key: snippetKey(['www.facebook.com'], ['m.facebook.com'], [['json-override', 'jsonpath($.data.node)', 'null', '', '/SponsoredData/']]),
+    exception: false,
+    domains: ['www.facebook.com'],
+    excludedDomains: ['m.facebook.com'],
+    calls: [['json-override', 'jsonpath($.data.node)', 'null', '', '/SponsoredData/']],
+  });
+});
+
+test('snippets must name a site, and non-ASCII arguments are kept', () => {
+  assert.equal(parseAbpLine('#$#abort-on-property-read ads', { snippets: true }), 'unsupported');
+  const f = parseAbpLine("instagram.com#$#hide-if-contains-visible-text '/Gesponsert|Реклама/' article", { snippets: true });
+  assert.ok(f && typeof f === 'object' && f.kind === 'snippet');
+  assert.deepEqual(f.calls, [['hide-if-contains-visible-text', '/Gesponsert|Реклама/', 'article']]);
+});
+
+test('a snippet exception cancels the same rule from any list, in either order', () => {
+  const rule = "instagram.com#$#hide-if-contains-visible-text '/Ad|Sponsored/' 'article' 'span'";
+  const exception = "instagram.com#@$#hide-if-contains-visible-text '/Ad|Sponsored/' 'article' 'span'";
+  const fixed = "instagram.com#$#hide-if-contains-visible-text '/^(?:Ad|Sponsored)$/' 'article' 'span'";
+  for (const order of [[exception, rule], [rule, exception]]) {
+    const merger = new FilterMerger();
+    order.forEach((list, bit) => parseList(`${list}
+${bit === 0 ? fixed : ''}`, 'abp', (f) => merger.add(f, bit), { snippets: true }));
+    const calls = [...merger.filters.values()].map((m) => (m.filter.kind === 'snippet' ? m.filter.calls[0]?.[1] : ''));
+    assert.deepEqual(calls, ['/^(?:Ad|Sponsored)$/']);
+  }
 });

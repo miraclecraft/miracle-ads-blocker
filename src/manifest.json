@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Miracle - Ads Blocker",
   "version": "0.0.0",
-  "description": "Blocks ads and trackers with EasyList, EasyPrivacy, AdGuard and uBlock filters, merged and kept up to date automatically.",
+  "description": "Blocks ads and trackers with EasyList, EasyPrivacy, AdGuard, uBlock and Adblock Plus filters, merged and kept up to date automatically.",
   "minimum_chrome_version": "121",
   "permissions": [
     "declarativeNetRequest",
@@ -11,6 +11,7 @@
     "alarms",
     "offscreen",
     "scripting",
+    "webNavigation",
     "activeTab"
   ],
   "host_permissions": ["<all_urls>"],

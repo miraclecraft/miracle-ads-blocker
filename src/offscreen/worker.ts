@@ -98,6 +98,11 @@ async function refresh(request: RefreshRequest): Promise<RefreshResult> {
 }
 
 async function check(cache: Cache, source: FilterSource, checkAll: boolean): Promise<Candidate> {
+  // Shipped with the extension: always current, never downloaded.
+  if (source.local) {
+    const text = await (await fetch(`/${source.urls[0]}`)).text();
+    return { source, cached: { text, validators: { url: source.urls[0]! }, updatedAt: 0, expiresAt: Infinity } };
+  }
   const cached = await load(cache, source);
   const candidate: Candidate = cached ? { source, cached } : { source };
   if (!checkAll && cached && Date.now() < cached.expiresAt) return candidate;
@@ -122,7 +127,7 @@ async function check(cache: Cache, source: FilterSource, checkAll: boolean): Pro
 
 function parseAll(text: string, source: FilterSource): Filter[] {
   const filters: Filter[] = [];
-  parseList(text, source.format, (filter) => filters.push(filter));
+  parseList(text, source.format, (filter) => filters.push(filter), { snippets: !!source.snippets });
   return filters;
 }
 

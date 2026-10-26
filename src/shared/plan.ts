@@ -7,9 +7,9 @@
 // Pure and synchronous so it can be unit tested and run inside a worker.
 
 import { RULESET, type BundleIndex } from './bundle.ts';
-import { chunk, cosmeticEntry, DOMAIN_CHUNK_SIZE, domainChunkRule, networkRule } from './filters/convert.ts';
+import { chunk, cosmeticEntry, DOMAIN_CHUNK_SIZE, domainChunkRule, networkRule, snippetEntry } from './filters/convert.ts';
 import { byRank, type MergedFilter } from './filters/merge.ts';
-import type { CosmeticEntry, DnrRule, DnrRuleDraft } from './filters/types.ts';
+import type { CosmeticEntry, DnrRule, DnrRuleDraft, SnippetEntry } from './filters/types.ts';
 import { fingerprint } from './hash.ts';
 
 export interface PlanInput {
@@ -28,8 +28,9 @@ export interface Plan {
   dynamicRules: DnrRuleDraft[];
   disabledStaticRules: Record<string, number[]>;
   cosmeticAdded: CosmeticEntry[];
-  /** Fingerprints of bundled element-hiding entries that were removed upstream. */
-  cosmeticRemoved: string[];
+  snippetsAdded: SnippetEntry[];
+  /** Fingerprints of bundled element-hiding and snippet entries removed upstream. */
+  removedEntries: string[];
   stats: {
     added: number;
     removed: number;
@@ -51,7 +52,7 @@ export function computePlan(input: PlanInput): Plan {
   const disabledNetwork: number[] = [];
   const disabledExtra: number[] = [];
   const shrunkChunks = new Set<number>();
-  const cosmeticRemoved: string[] = [];
+  const removedEntries: string[] = [];
   const domainMasks = new Map<string, number>();
 
   for (const [fp, mask, loc] of index.entries) {
@@ -60,12 +61,12 @@ export function computePlan(input: PlanInput): Plan {
     if (fresh.has(fp) || mask & staleMask) continue;
     if (loc > 0) (loc > index.networkLastId ? disabledExtra : disabledNetwork).push(loc);
     else if (loc < 0) shrunkChunks.add(-loc);
-    else cosmeticRemoved.push(fp);
+    else removedEntries.push(fp);
   }
 
   const dynamicRules: DnrRuleDraft[] = [];
   const disabledDomains: number[] = [];
-  let removed = disabledNetwork.length + disabledExtra.length + cosmeticRemoved.length;
+  let removed = disabledNetwork.length + disabledExtra.length + removedEntries.length;
 
   // Shrunk chunks first: until a replacement is added, its domains go unblocked.
   for (const rule of input.domainRules) {
@@ -85,10 +86,12 @@ export function computePlan(input: PlanInput): Plan {
   const newDomains: string[] = [];
   const newNetwork: MergedFilter[] = [];
   const cosmeticAdded: CosmeticEntry[] = [];
+  const snippetsAdded: SnippetEntry[] = [];
   for (const m of additions) {
     if (m.filter.kind === 'domain') newDomains.push(m.filter.domain);
     else if (m.filter.kind === 'network') newNetwork.push(m);
-    else cosmeticAdded.push(cosmeticEntry(m.filter));
+    else if (m.filter.kind === 'cosmetic') cosmeticAdded.push(cosmeticEntry(m.filter));
+    else snippetsAdded.push(snippetEntry(m.filter));
   }
 
   let skipped = 0;
@@ -110,7 +113,8 @@ export function computePlan(input: PlanInput): Plan {
       [RULESET.networkExtra]: disabledExtra.slice(0, input.maxDisabledStaticRules),
     },
     cosmeticAdded,
-    cosmeticRemoved,
+    snippetsAdded,
+    removedEntries,
     stats: { added: additions.length - skipped, removed, skipped },
   };
 }

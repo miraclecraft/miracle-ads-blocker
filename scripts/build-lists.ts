@@ -2,7 +2,8 @@
 // the rulesets the extension ships with. Fails loudly rather than shipping a
 // partial or suspicious bundle.
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import main from '@eyeo/snippets/main';
 import {
   EXTRA_STATIC_RULES,
   GUARANTEED_STATIC_RULES,
@@ -11,10 +12,17 @@ import {
   type BundleMeta,
   type BundleSourceInfo,
 } from '../src/shared/bundle.ts';
-import { chunk, cosmeticEntry, DOMAIN_CHUNK_SIZE, domainChunkRule, networkRule } from '../src/shared/filters/convert.ts';
+import {
+  chunk,
+  cosmeticEntry,
+  DOMAIN_CHUNK_SIZE,
+  domainChunkRule,
+  networkRule,
+  snippetEntry,
+} from '../src/shared/filters/convert.ts';
 import { byRank, FilterMerger, type MergedFilter } from '../src/shared/filters/merge.ts';
 import { parseList } from '../src/shared/filters/parse.ts';
-import type { CosmeticEntry, DnrRule } from '../src/shared/filters/types.ts';
+import type { CosmeticEntry, DnrRule, SnippetEntry } from '../src/shared/filters/types.ts';
 import { fetchList } from '../src/shared/fetch-list.ts';
 import { SOURCES } from '../src/shared/sources.ts';
 
@@ -23,11 +31,15 @@ const merger = new FilterMerger();
 const sourceInfo: BundleSourceInfo[] = [];
 
 for (const [bit, source] of bundled.entries()) {
-  const result = await fetchList(source);
+  const result = source.local
+    ? { status: 'updated' as const, text: await readFile(source.urls[0]!, 'utf8'), validators: { url: source.urls[0]! } }
+    : await fetchList(source);
   if (result.status !== 'updated') {
     throw new Error(`${source.name}: download failed\n  ${result.status === 'failed' ? result.errors.join('\n  ') : ''}`);
   }
-  const stats = parseList(result.text, source.format, (filter) => merger.add(filter, bit));
+  const stats = parseList(result.text, source.format, (filter) => merger.add(filter, bit), {
+    snippets: !!source.snippets,
+  });
   if (stats.filters < source.minFilters) {
     throw new Error(`${source.name}: only ${stats.filters} filters, expected at least ${source.minFilters}`);
   }
@@ -38,9 +50,9 @@ for (const [bit, source] of bundled.entries()) {
 const domains: MergedFilter[] = [];
 const network: MergedFilter[] = [];
 const cosmetic: MergedFilter[] = [];
-for (const m of merger.filters.values()) {
-  (m.filter.kind === 'domain' ? domains : m.filter.kind === 'network' ? network : cosmetic).push(m);
-}
+const snippets: MergedFilter[] = [];
+const byKind = { domain: domains, network, cosmetic, snippet: snippets };
+for (const m of merger.filters.values()) byKind[m.filter.kind].push(m);
 
 const entries: BundleIndex['entries'] = [];
 const dropped: string[] = [];
@@ -77,6 +89,13 @@ for (const m of cosmetic.sort(byRank)) {
   entries.push([m.fp, m.mask, 0]);
 }
 
+const snippetEntries: SnippetEntry[] = [];
+for (const m of snippets.sort(byRank)) {
+  if (m.filter.kind !== 'snippet') continue;
+  snippetEntries.push(snippetEntry(m.filter));
+  entries.push([m.fp, m.mask, 0]);
+}
+
 const index: BundleIndex = {
   version: 1,
   builtAt: new Date().toISOString(),
@@ -93,6 +112,15 @@ await Promise.all([
   write('network.json', networkRules),
   write('network-extra.json', extraRules),
   write('cosmetic.json', cosmeticEntries),
+  write('snippets.json', snippetEntries),
+  // Page-world calls only: these are compiled into a script registered to run
+  // at document_start, ahead of the page's own scripts.
+  write(
+    'snippets-main.json',
+    snippetEntries
+      .map((entry) => ({ ...entry, c: entry.c.filter(([name]) => !!name && main.has(name)) }))
+      .filter((entry) => entry.c.length),
+  ),
   write('index.json', index),
   write('meta.json', {
     builtAt: index.builtAt,
@@ -102,6 +130,7 @@ await Promise.all([
       network: networkRules.length,
       networkExtra: extraRules.length,
       cosmetic: cosmeticEntries.length,
+      snippets: snippetEntries.length,
     },
   } satisfies BundleMeta),
 ]);
@@ -109,5 +138,5 @@ await Promise.all([
 console.log(
   `\n${domains.length} domains in ${domainRules.length} rules, ` +
     `${networkRules.length} + ${extraRules.length} network rules (${dropped.length} dropped), ` +
-    `${cosmeticEntries.length} element-hiding rules`,
+    `${cosmeticEntries.length} element-hiding rules, ${snippetEntries.length} snippet rules`,
 );

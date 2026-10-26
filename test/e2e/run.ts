@@ -1,6 +1,9 @@
 // End-to-end check of dist/ in Microsoft Edge with a throwaway profile.
 //
-//   npm run build && npm run test:e2e
+//   npm run test:e2e
+//
+// Builds its own copy into .e2e-dist/ (with a test-only snippet rule for
+// localhost) and loads that, so dist/ is never touched.
 //
 // To test other Chromium browsers, set BROWSERS:
 // BROWSERS="edge=C:\path\msedge.exe;brave=C:\pathrave.exe".
@@ -13,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium, type BrowserContext, type Page, type Worker } from 'playwright-core';
 
-const DIST = resolve('dist');
+const DIST = resolve(process.env.E2E_DIST ?? '.e2e-dist');
 
 const KNOWN_BROWSERS: Record<string, string[]> = {
   edge: [
@@ -39,6 +42,16 @@ const PAGE = `<!doctype html><title>Miracle test page</title>
 }, 800);</script>`;
 const AD_PATH = '/img/x-ad-sidebar.png';
 
+// Exercises snippets. The --e2e build packages a rule for localhost that
+// prunes `ad` and hides posts labelled "Sponsored"; an inline script parses
+// data as early as a page can. A rule added later, as a list update would,
+// prunes `promo`.
+const SNIPPET_PAGE = `<!doctype html><title>Snippet test page</title>
+<script>window.parsed = JSON.parse('{"ad":{"id":1},"keep":2}');</script>
+<div class="post" id="sponsored"><span>Sponsored</span> buy things</div>
+<div class="post" id="organic">a friend's post</div>`;
+const UPDATE_SNIPPETS = [{ d: ['localhost'], c: [['json-prune', 'promo']] }];
+
 interface Result {
   name: string;
   ok: boolean;
@@ -48,7 +61,7 @@ interface Result {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 if (!existsSync(join(DIST, 'manifest.json'))) {
-  console.error('dist/ is missing. Run `npm run lists && npm run build` first.');
+  console.error(`${DIST} is missing. Run \`npm run lists\` first, then \`npm run test:e2e\`.`);
   process.exit(1);
 }
 
@@ -62,6 +75,7 @@ const hits = new Set<string>();
 const server = createServer((req, res) => {
   hits.add(req.url ?? '');
   if (req.url === '/') res.writeHead(200, { 'content-type': 'text/html' }).end(PAGE);
+  else if (req.url === '/snippets') res.writeHead(200, { 'content-type': 'text/html' }).end(SNIPPET_PAGE);
   else res.writeHead(200, { 'content-type': 'image/png' }).end();
 });
 await new Promise<void>((r) => server.listen(0, 'localhost', r));
@@ -113,6 +127,7 @@ async function runBrowser(exe: string): Promise<number> {
     await checkRulesets(sw, check);
     const page = await context.newPage();
     await checkPage(page, check);
+    await checkSnippets(sw, context, check);
     const popup = await openPopup(context, sw);
     await checkRefresh(sw, popup, check);
     await checkControls(page, popup, check);
@@ -173,6 +188,33 @@ async function checkPage(page: Page, check: Check): Promise<void> {
   check('always-on hiding rule applied (amp-ad)', !(await isVisible(page, '#keyless')));
   check('hiding applied to an element added later', !(await isVisible(page, '#late')));
   check('normal content still visible', await isVisible(page, '#control'));
+}
+
+async function checkSnippets(sw: Worker, context: BrowserContext, check: Check): Promise<void> {
+  // Runs before the live update, which replaces the stored page delta.
+  await sw.evaluate(
+    (snippets) => chrome.storage.local.set({ pageDelta: { cosmetic: [], snippets, removed: [] } }),
+    UPDATE_SNIPPETS,
+  );
+  await sleep(500);
+  const page = await context.newPage();
+  await page.goto(`${origin}/snippets`);
+  await sleep(1_500);
+  const result = await page.evaluate(() => ({
+    parsed: (window as unknown as { parsed?: Record<string, unknown> }).parsed,
+    later: JSON.parse('{"promo":1,"keep":2}') as Record<string, unknown>,
+    sponsored: getComputedStyle(document.querySelector('#sponsored')!).display,
+    organic: getComputedStyle(document.querySelector('#organic')!).display,
+  }));
+  check(
+    "packaged page-world snippet runs before the page's own scripts",
+    !!result.parsed && !('ad' in result.parsed) && result.parsed.keep === 2,
+    JSON.stringify(result.parsed),
+  );
+  check('snippet added by a list update is applied', !('promo' in result.later), JSON.stringify(result.later));
+  check('ISOLATED-world snippet hides the sponsored post', result.sponsored === 'none');
+  check('the normal post stays visible', result.organic !== 'none');
+  await page.close();
 }
 
 async function openPopup(context: BrowserContext, sw: Worker): Promise<Page> {

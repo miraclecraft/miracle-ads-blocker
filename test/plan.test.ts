@@ -50,7 +50,8 @@ test('no changes upstream means no runtime rules', () => {
   assert.deepEqual(result.dynamicRules, []);
   assert.deepEqual(result.disabledStaticRules, { domains: [], network: [], 'network-extra': [] });
   assert.deepEqual(result.cosmeticAdded, []);
-  assert.deepEqual(result.cosmeticRemoved, []);
+  assert.deepEqual(result.snippetsAdded, []);
+  assert.deepEqual(result.removedEntries, []);
 });
 
 test('new filters become dynamic rules; bundled ones are skipped', () => {
@@ -68,7 +69,7 @@ test('rules removed upstream are disabled, and shrunk chunks are re-added withou
   assert.deepEqual(result.dynamicRules, [
     { priority: 1, action: { type: 'block' }, condition: { requestDomains: ['a.com'] } },
   ]);
-  assert.deepEqual(result.cosmeticRemoved, [fp('##.banner')]);
+  assert.deepEqual(result.removedEntries, [fp('##.banner')]);
 });
 
 test('a source we have no fresh copy of still vouches for its bundled rules', () => {
