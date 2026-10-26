@@ -1,10 +1,10 @@
-// End-to-end check of dist/ in real browsers, each with a throwaway profile.
+// End-to-end check of dist/ in Microsoft Edge with a throwaway profile.
 //
 //   npm run build && npm run test:e2e
 //
-// Runs every installed browser it knows about (Edge, Brave). Set BROWSERS to
-// pick your own: BROWSERS="edge=C:\path\msedge.exe;brave=/usr/bin/brave".
-// Chrome is not listed because its branded builds ignore --load-extension.
+// To test other Chromium browsers, set BROWSERS:
+// BROWSERS="edge=C:\path\msedge.exe;brave=C:\pathrave.exe".
+// Chrome's branded builds can't be used: they ignore --load-extension.
 
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -21,12 +21,6 @@ const KNOWN_BROWSERS: Record<string, string[]> = {
     'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
     '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     '/usr/bin/microsoft-edge',
-  ],
-  brave: [
-    'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe',
-    `${process.env.LOCALAPPDATA}/BraveSoftware/Brave-Browser/Application/brave.exe`,
-    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-    '/usr/bin/brave-browser',
   ],
 };
 
@@ -60,7 +54,7 @@ if (!existsSync(join(DIST, 'manifest.json'))) {
 
 const browsers = pickBrowsers();
 if (!browsers.length) {
-  console.error('No supported browser found. Set BROWSERS="name=path;...".');
+  console.error('Microsoft Edge not found. Set BROWSERS="edge=C:\path\msedge.exe".');
   process.exit(1);
 }
 

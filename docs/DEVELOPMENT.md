@@ -9,15 +9,15 @@ npm run lists     # download and merge the filter lists into rules/
 npm run build     # bundle the extension into dist/
 npm test
 npm run typecheck
-npm run test:e2e  # load dist/ into Edge and Brave and check it really blocks
+npm run test:e2e  # load dist/ into Edge and check it really blocks
 ```
 
-`test:e2e` uses whichever of Edge and Brave are installed, each with a
-throwaway profile, so your own browser profile is never touched. It serves a
+`test:e2e` runs in Microsoft Edge with a throwaway profile, so your own
+browser profile is never touched. It serves a
 local test page and checks network blocking, element hiding, a live list update,
 pausing a site and turning blocking off. Run it before tagging a release. Point
-it at other browsers with `BROWSERS="name=path;name=path"` (Chrome's branded
-builds can't be used: they ignore `--load-extension`).
+it at other Chromium browsers with `BROWSERS="name=path;name=path"` (Chrome's
+branded builds can't be used: they ignore `--load-extension`).
 
 Load `dist/` from `edge://extensions` with **Developer mode** on. `npm run watch`
 rebuilds on every change; reload the extension afterwards.
