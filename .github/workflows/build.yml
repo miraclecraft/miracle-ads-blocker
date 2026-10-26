@@ -26,7 +26,16 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run lists
+      # List hosts occasionally drop connections mid-download, and Node's fetch
+      # can crash the process outright when they do, so retry the whole step.
+      - name: Build filter lists
+        run: |
+          for attempt in 1 2 3; do
+            npm run lists && exit 0
+            echo "Attempt $attempt failed, retrying in 15s"
+            sleep 15
+          done
+          exit 1
       - run: npm run build
 
       - name: Zip extension
