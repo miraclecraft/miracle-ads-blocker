@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
 - Blocks YouTube video ads: a script in the page removes ad entries from the player data (initial load, in-app navigation, fetch and XHR) and skips any ad that still starts.
 

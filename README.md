@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.1.0-7c3aed?style=flat-square" alt="Version" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.1.1-7c3aed?style=flat-square" alt="Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-db2777?style=flat-square" alt="License: GPL-3.0" /></a>
   <a href="https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3"><img src="https://img.shields.io/badge/manifest-v3-f59e0b?style=flat-square" alt="Manifest V3" /></a>
 </p>
